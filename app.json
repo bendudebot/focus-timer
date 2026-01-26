@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Focus Timer",
+    "slug": "focus-timer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "focustimer",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bendudebot.focustimer"
+    },
+    "android": {
+      "package": "com.bendudebot.focustimer"
+    },
+    "plugins": ["expo-router"]
+  }
+}
