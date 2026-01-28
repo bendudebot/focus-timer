@@ -1,35 +1,91 @@
 # 🍅 Focus Timer
 
-> Beautiful Pomodoro timer to boost your productivity.
+> A beautiful, minimalist Pomodoro timer app to supercharge your productivity.
 
-## 🎯 Features
+<p align="center">
+  <img src="screenshots/home.png" alt="Focus Timer Screenshot" width="300">
+</p>
 
-- ⏱️ **Pomodoro Timer** - 25/5/15 min cycles
-- 📊 **Stats** - Track your focus streaks
-- 🎨 **Themes** - Multiple beautiful gradients
-- 🔔 **Notifications** - Stay on track
-- 🌙 **Dark Mode** - Easy on the eyes
-- 📱 **Widget** - Quick access (Pro)
+## ✨ Features
 
-## 💰 Monetization
+### ⏱️ Pomodoro Technique
+- **25-minute focus sessions** to maximize deep work
+- **5-minute short breaks** to recharge
+- **15-minute long breaks** after 4 cycles
+- Automatic cycle tracking with visual indicators
+
+### 🎨 Beautiful Design
+- Stunning gradient backgrounds
+- Animated circular progress ring with glow effects
+- Smooth animations and haptic feedback
+- Dark mode optimized for eye comfort
+
+### 📊 Track Your Progress
+- Daily session counter
+- Total focus minutes tracked
+- Persistent stats across sessions
+- Visual cycle completion indicators
+
+### 🔔 Stay on Track
+- Push notifications when timer completes
+- Background timer support
+- Works even when app is minimized
+
+## 📱 Screenshots
+
+<p align="center">
+  <img src="screenshots/home.png" alt="Home Screen" width="250">
+</p>
+
+## 💰 Pricing
 
 | Tier | Price | Features |
 |------|-------|----------|
-| Free | $0 | Basic timer + ads |
-| Pro | $4.99 once | No ads, themes, widgets, custom times |
+| **Free** | $0 | Basic timer, daily stats, ads |
+| **Pro** | $4.99 (one-time) | No ads, custom themes, widgets, custom durations |
 
-## 🛠️ Tech
+## 🛠️ Tech Stack
 
-- React Native + Expo
-- Zustand (state)
-- AdMob (ads)
-- RevenueCat (IAP)
+- **React Native** + **Expo** - Cross-platform mobile development
+- **Zustand** - Lightweight state management
+- **Reanimated** - Smooth 60fps animations
+- **AdMob** - Non-intrusive advertising
+- **RevenueCat** - In-app purchases
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ```bash
+# Install dependencies
 npm install
+
+# Start development server
 npx expo start
+
+# Run on iOS simulator
+npx expo run:ios
+
+# Run on Android emulator
+npx expo run:android
 ```
 
-MIT © bendudebot
+## 📁 Project Structure
+
+```
+focus-timer/
+├── src/
+│   ├── app/           # Main screens
+│   ├── store/         # Zustand state management
+│   └── utils/         # Notifications, helpers
+├── assets/            # Images, fonts
+└── screenshots/       # App screenshots
+```
+
+## 📄 License
+
+MIT © [bendudebot](https://github.com/bendudebot)
+
+---
+
+<p align="center">
+  Made with ❤️ and lots of ☕
+</p>
