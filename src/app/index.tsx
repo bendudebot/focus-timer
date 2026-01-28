@@ -9,6 +9,8 @@ import {
   AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -21,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useTimerStore, MODES, Mode } from '../store/timerStore';
-import { colors, spacing, radius, animation, typography } from '../constants/theme';
+import { colors, spacing, radius, animation, typography, shadows, blur } from '../constants/theme';
 import { CYCLE } from '../constants/timer';
 import {
   requestNotificationPermissions,
@@ -32,17 +34,16 @@ import {
 
 // Layout constants
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CIRCLE_SIZE = SCREEN_WIDTH * 0.72;
-const STROKE_WIDTH = 8;
+const CIRCLE_SIZE = SCREEN_WIDTH * 0.68;
+const STROKE_WIDTH = 6;
 const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 // Control button sizes
 const MAIN_BUTTON_SIZE = 72;
-const SECONDARY_BUTTON_SIZE = 48;
+const SECONDARY_BUTTON_SIZE = 52;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // Format seconds to MM:SS
 const formatTime = (seconds: number): string => {
@@ -74,7 +75,7 @@ export default function TimerScreen() {
   // Animation values
   const progress = useSharedValue(0);
   const buttonScale = useSharedValue(1);
-  const ringOpacity = useSharedValue(0.15);
+  const glowIntensity = useSharedValue(0.2);
 
   const currentMode = MODES[mode];
   const accentColor = currentMode.color;
@@ -92,11 +93,9 @@ export default function TimerScreen() {
       const isNowActive = nextAppState === 'active';
 
       if (wasActive && !isNowActive && isRunning) {
-        // Going to background while running
         backgroundTime.current = Date.now();
         await scheduleTimerEndNotification(mode, timeLeft);
       } else if (!wasActive && isNowActive) {
-        // Coming back to foreground
         await cancelTimerNotification();
 
         if (backgroundTime.current && isRunning) {
@@ -131,19 +130,19 @@ export default function TimerScreen() {
     });
   }, [timeLeft, currentMode.duration]);
 
-  // Subtle pulse when running
+  // Subtle glow pulse when running
   useEffect(() => {
     if (isRunning) {
-      ringOpacity.value = withRepeat(
+      glowIntensity.value = withRepeat(
         withSequence(
-          withTiming(0.25, { duration: animation.pulse }),
-          withTiming(0.1, { duration: animation.pulse })
+          withTiming(0.4, { duration: animation.pulse }),
+          withTiming(0.15, { duration: animation.pulse })
         ),
         -1,
         true
       );
     } else {
-      ringOpacity.value = withTiming(0.15, { duration: animation.normal });
+      glowIntensity.value = withTiming(0.2, { duration: animation.normal });
     }
   }, [isRunning]);
 
@@ -172,8 +171,8 @@ export default function TimerScreen() {
   const handleToggle = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    buttonScale.value = withSpring(0.92, { damping: 15 }, () => {
-      buttonScale.value = withSpring(1, { damping: 15 });
+    buttonScale.value = withSpring(0.9, { damping: 12 }, () => {
+      buttonScale.value = withSpring(1, { damping: 12 });
     });
 
     if (!isRunning) {
@@ -213,38 +212,48 @@ export default function TimerScreen() {
     transform: [{ scale: buttonScale.value }],
   }));
 
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: ringOpacity.value,
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowIntensity.value,
   }));
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={colors.background.gradient}
+      style={styles.container}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    >
       <SafeAreaView style={styles.safeArea}>
-        {/* Mode Selector */}
-        <View style={styles.modeSelector}>
-          {(Object.entries(MODES) as [Mode, typeof MODES[Mode]][]).map(([key, config]) => {
-            const isActive = mode === key;
-            return (
-              <Pressable
-                key={key}
-                style={[
-                  styles.modeButton,
-                  isActive && [styles.modeButtonActive, { borderColor: config.color }],
-                ]}
-                onPress={() => handleModeChange(key)}
-              >
-                <Text
+        {/* Mode Selector - Glass Card */}
+        <BlurView intensity={blur.medium} tint="dark" style={styles.modeSelectorBlur}>
+          <View style={styles.modeSelector}>
+            {(Object.entries(MODES) as [Mode, typeof MODES[Mode]][]).map(([key, config]) => {
+              const isActive = mode === key;
+              return (
+                <Pressable
+                  key={key}
                   style={[
-                    styles.modeButtonText,
-                    isActive && { color: config.color },
+                    styles.modeButton,
+                    isActive && styles.modeButtonActive,
                   ]}
+                  onPress={() => handleModeChange(key)}
                 >
-                  {config.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  {isActive && (
+                    <View style={[styles.modeIndicator, { backgroundColor: config.color }]} />
+                  )}
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      isActive && { color: colors.text.primary },
+                    ]}
+                  >
+                    {config.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </BlurView>
 
         {/* Cycle Progress Dots */}
         <View style={styles.cycleContainer}>
@@ -261,22 +270,27 @@ export default function TimerScreen() {
 
         {/* Timer Display */}
         <View style={styles.timerContainer}>
-          {/* Ambient ring */}
+          {/* Ambient glow */}
           <Animated.View
             style={[
-              styles.ambientRing,
-              { borderColor: accentColor },
-              ringStyle,
+              styles.ambientGlow,
+              { backgroundColor: accentColor },
+              glowStyle,
             ]}
           />
 
-          <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE}>
+          {/* Glass circle background */}
+          <BlurView intensity={blur.light} tint="dark" style={styles.timerGlassCircle}>
+            <View style={styles.timerGlassInner} />
+          </BlurView>
+
+          <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.progressSvg}>
             {/* Track */}
             <Circle
               cx={CIRCLE_SIZE / 2}
               cy={CIRCLE_SIZE / 2}
               r={RADIUS}
-              stroke={colors.ui.border}
+              stroke={colors.glass.border}
               strokeWidth={STROKE_WIDTH}
               fill="transparent"
             />
@@ -314,20 +328,21 @@ export default function TimerScreen() {
             ]}
             onPress={handleReset}
           >
-            <Text style={styles.iconText}>↻</Text>
+            <BlurView intensity={blur.medium} tint="dark" style={styles.buttonBlur}>
+              <Text style={styles.iconText}>↻</Text>
+            </BlurView>
           </Pressable>
 
           <Pressable onPress={handleToggle}>
-            <Animated.View
-              style={[
-                styles.mainButton,
-                { backgroundColor: accentColor },
-                buttonAnimatedStyle,
-              ]}
-            >
-              <Text style={styles.mainButtonText}>
-                {isRunning ? '❚❚' : '▶'}
-              </Text>
+            <Animated.View style={buttonAnimatedStyle}>
+              <View style={[styles.mainButton, shadows.glow(accentColor)]}>
+                <BlurView intensity={blur.heavy} tint="dark" style={styles.mainButtonBlur}>
+                  <View style={[styles.mainButtonOverlay, { backgroundColor: accentColor }]} />
+                  <Text style={styles.mainButtonText}>
+                    {isRunning ? '❚❚' : '▶'}
+                  </Text>
+                </BlurView>
+              </View>
             </Animated.View>
           </Pressable>
 
@@ -338,37 +353,40 @@ export default function TimerScreen() {
             ]}
             onPress={handleSkip}
           >
-            <Text style={styles.iconText}>⏭</Text>
+            <BlurView intensity={blur.medium} tint="dark" style={styles.buttonBlur}>
+              <Text style={styles.iconText}>⏭</Text>
+            </BlurView>
           </Pressable>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: accentColor }]}>
-              {todayStats.sessionsCompleted}
-            </Text>
-            <Text style={styles.statLabel}>Sessions</Text>
-          </View>
+        {/* Stats - Glass Card */}
+        <BlurView intensity={blur.medium} tint="dark" style={styles.statsCardBlur}>
+          <View style={styles.statsCard}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: accentColor }]}>
+                {todayStats.sessionsCompleted}
+              </Text>
+              <Text style={styles.statLabel}>Sessions</Text>
+            </View>
 
-          <View style={styles.statDivider} />
+            <View style={styles.statDivider} />
 
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: accentColor }]}>
-              {todayStats.totalFocusMinutes}
-            </Text>
-            <Text style={styles.statLabel}>Minutes</Text>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: accentColor }]}>
+                {todayStats.totalFocusMinutes}
+              </Text>
+              <Text style={styles.statLabel}>Minutes</Text>
+            </View>
           </View>
-        </View>
+        </BlurView>
       </SafeAreaView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
   },
   safeArea: {
     flex: 1,
@@ -377,33 +395,47 @@ const styles = StyleSheet.create({
   },
 
   // Mode selector
+  modeSelectorBlur: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.glass.border,
+  },
   modeSelector: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    padding: spacing.xs,
+    gap: spacing.xs,
   },
   modeButton: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.md + 4,
     paddingVertical: spacing.sm + 2,
-    borderRadius: radius.full,
-    backgroundColor: colors.ui.surface,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderRadius: radius.lg,
+    position: 'relative',
+    overflow: 'hidden',
   },
   modeButtonActive: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.glass.backgroundActive,
+  },
+  modeIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: '25%',
+    right: '25%',
+    height: 2,
+    borderRadius: 1,
   },
   modeButtonText: {
     color: colors.text.tertiary,
-    fontSize: typography.label.fontSize,
-    fontWeight: typography.label.fontWeight,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
 
   // Cycle dots
   cycleContainer: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
+    gap: spacing.sm + 2,
+    marginTop: spacing.xl,
   },
   cycleDot: {
     width: 8,
@@ -418,15 +450,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ambientRing: {
+  ambientGlow: {
     position: 'absolute',
-    width: CIRCLE_SIZE + 32,
-    height: CIRCLE_SIZE + 32,
-    borderRadius: (CIRCLE_SIZE + 32) / 2,
+    width: CIRCLE_SIZE * 1.3,
+    height: CIRCLE_SIZE * 1.3,
+    borderRadius: CIRCLE_SIZE * 0.65,
+    transform: [{ scale: 1.1 }],
+  },
+  timerGlassCircle: {
+    position: 'absolute',
+    width: CIRCLE_SIZE - 20,
+    height: CIRCLE_SIZE - 20,
+    borderRadius: (CIRCLE_SIZE - 20) / 2,
+    overflow: 'hidden',
     borderWidth: 1,
+    borderColor: colors.glass.border,
+  },
+  timerGlassInner: {
+    flex: 1,
+    backgroundColor: colors.glass.background,
+  },
+  progressSvg: {
+    position: 'absolute',
   },
   timeDisplay: {
-    position: 'absolute',
     alignItems: 'center',
   },
   timeText: {
@@ -448,50 +495,72 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xl,
+    gap: spacing.xl + spacing.sm,
     marginBottom: spacing.xl,
   },
   mainButton: {
     width: MAIN_BUTTON_SIZE,
     height: MAIN_BUTTON_SIZE,
     borderRadius: MAIN_BUTTON_SIZE / 2,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.glass.borderLight,
+  },
+  mainButtonBlur: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  mainButtonOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.25,
+  },
   mainButtonText: {
-    fontSize: 24,
+    fontSize: 22,
     color: colors.text.primary,
+    fontWeight: '600',
   },
   secondaryButton: {
     width: SECONDARY_BUTTON_SIZE,
     height: SECONDARY_BUTTON_SIZE,
     borderRadius: SECONDARY_BUTTON_SIZE / 2,
-    backgroundColor: colors.ui.surface,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.glass.border,
+  },
+  buttonBlur: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.ui.border,
+    backgroundColor: colors.glass.background,
   },
   buttonPressed: {
-    backgroundColor: colors.ui.surfaceHover,
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
   },
   iconText: {
-    fontSize: 18,
+    fontSize: 20,
     color: colors.text.secondary,
   },
 
   // Stats
+  statsCardBlur: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    marginBottom: spacing.xl + spacing.md,
+    borderWidth: 1,
+    borderColor: colors.glass.border,
+  },
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.ui.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl + spacing.sm,
-    marginBottom: spacing.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl + spacing.md,
+    backgroundColor: colors.glass.background,
   },
   statItem: {
     alignItems: 'center',
+    minWidth: 80,
   },
   statValue: {
     fontSize: typography.stat.fontSize,
@@ -501,14 +570,14 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     fontWeight: typography.caption.fontWeight,
     color: colors.text.tertiary,
-    marginTop: spacing.xs,
+    marginTop: spacing.xs + 2,
     textTransform: 'uppercase',
     letterSpacing: typography.caption.letterSpacing,
   },
   statDivider: {
     width: 1,
-    height: 36,
-    backgroundColor: colors.ui.border,
+    height: 40,
+    backgroundColor: colors.glass.border,
     marginHorizontal: spacing.xl,
   },
 });
