@@ -1,8 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { Mode, MODES } from '../store/timerStore';
+import { Mode } from '../constants/timer';
+import { colors } from '../constants/theme';
 
-// Configure how notifications appear when app is in foreground
+// Notification channel ID
+const CHANNEL_ID = 'timer';
+
+// Configure foreground notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -13,48 +17,61 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Notification content by mode
+const getNotificationContent = (mode: Mode): { title: string; body: string } => {
+  if (mode === 'focus') {
+    return {
+      title: 'Focus Session Complete',
+      body: 'Great work! Time to take a break.',
+    };
+  }
+  return {
+    title: 'Break Over',
+    body: 'Ready to get back to work?',
+  };
+};
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
   
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  if (existingStatus === 'granted') {
+    await setupAndroidChannel();
+    return true;
   }
+
+  const { status } = await Notifications.requestPermissionsAsync();
   
-  if (finalStatus !== 'granted') {
+  if (status !== 'granted') {
     console.log('Notification permissions not granted');
     return false;
   }
-  
-  // Android specific channel setup
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('timer', {
-      name: 'Timer Notifications',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#e94560',
-      sound: 'default',
-    });
-  }
-  
+
+  await setupAndroidChannel();
   return true;
 }
 
-export async function scheduleTimerEndNotification(mode: Mode, secondsLeft: number): Promise<string | null> {
-  // Cancel any existing timer notification
+async function setupAndroidChannel(): Promise<void> {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      name: 'Timer',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 200, 100, 200],
+      lightColor: colors.accent.focus,
+      sound: 'default',
+    });
+  }
+}
+
+export async function scheduleTimerEndNotification(
+  mode: Mode,
+  secondsLeft: number
+): Promise<string | null> {
   await cancelTimerNotification();
-  
-  const modeConfig = MODES[mode];
-  const isBreak = mode !== 'focus';
-  
-  const title = isBreak ? '⏰ Break Over!' : '🍅 Focus Session Complete!';
-  const body = isBreak 
-    ? 'Time to get back to work!' 
-    : `Great job! Take a ${mode === 'longBreak' ? 'long' : 'short'} break.`;
-  
+
+  const { title, body } = getNotificationContent(mode);
+
   try {
-    const id = await Notifications.scheduleNotificationAsync({
+    return await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -63,26 +80,18 @@ export async function scheduleTimerEndNotification(mode: Mode, secondsLeft: numb
       },
       trigger: {
         seconds: secondsLeft,
-        channelId: Platform.OS === 'android' ? 'timer' : undefined,
+        channelId: Platform.OS === 'android' ? CHANNEL_ID : undefined,
       } as Notifications.TimeIntervalTriggerInput,
     });
-    
-    return id;
   } catch (error) {
-    console.error('Error scheduling notification:', error);
+    console.error('Failed to schedule notification:', error);
     return null;
   }
 }
 
 export async function sendImmediateNotification(mode: Mode): Promise<void> {
-  const isBreak = mode !== 'focus';
-  const nextMode = isBreak ? 'Focus' : (mode === 'focus' ? 'Break' : 'Break');
-  
-  const title = isBreak ? '⏰ Break Over!' : '🍅 Focus Session Complete!';
-  const body = isBreak 
-    ? 'Time to get back to work!' 
-    : 'Great job! Time for a break.';
-  
+  const { title, body } = getNotificationContent(mode);
+
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -91,10 +100,10 @@ export async function sendImmediateNotification(mode: Mode): Promise<void> {
         sound: 'default',
         priority: Notifications.AndroidNotificationPriority.HIGH,
       },
-      trigger: null, // Immediate notification
+      trigger: null,
     });
   } catch (error) {
-    console.error('Error sending immediate notification:', error);
+    console.error('Failed to send notification:', error);
   }
 }
 
